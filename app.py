@@ -1,12 +1,24 @@
 import streamlit as st
 import joblib
 import pandas as pd
+import os
 
 # ----------------------------
-# Load model and vectorizer
+# Load model and vectorizer safely
 # ----------------------------
-model = joblib.load("svm_model.pkl")
-vectorizer = joblib.load("vectorizer.pkl")
+MODEL_PATH = "svm_model.pkl"
+VECTORIZER_PATH = "vectorizer.pkl"
+
+if not os.path.exists(MODEL_PATH):
+    st.error("svm_model.pkl not found. Make sure it is in the project folder.")
+    st.stop()
+
+if not os.path.exists(VECTORIZER_PATH):
+    st.error("vectorizer.pkl not found. Make sure it is in the project folder.")
+    st.stop()
+
+model = joblib.load(MODEL_PATH)
+vectorizer = joblib.load(VECTORIZER_PATH)
 
 # ----------------------------
 # Page settings
@@ -26,31 +38,20 @@ st.write("Enter a healthcare review to predict sentiment.")
 if "history" not in st.session_state:
     st.session_state.history = []
 
-# ----------------------------
-# Input
-# ----------------------------
 review = st.text_area("Patient Review", height=150)
 
-# ----------------------------
-# Predict
-# ----------------------------
 if st.button("Analyze Sentiment"):
 
     if review.strip() == "":
         st.warning("Please enter a review.")
     else:
-        # Convert text to vector
         vector = vectorizer.transform([review])
-
-        # Predict sentiment
         prediction = model.predict(vector)[0]
 
-        # Get probabilities
         probabilities = model.predict_proba(vector)[0]
         class_index = list(model.classes_).index(prediction)
         confidence = round(probabilities[class_index] * 100, 2)
 
-        # Display result
         if prediction.lower() == "positive":
             st.success(f"Predicted Sentiment: {prediction}")
         elif prediction.lower() == "negative":
@@ -60,16 +61,12 @@ if st.button("Analyze Sentiment"):
 
         st.write(f"Confidence: {confidence}%")
 
-        # Save history
         st.session_state.history.append({
             "Review": review,
             "Prediction": prediction,
             "Confidence (%)": confidence
         })
 
-# ----------------------------
-# Show history
-# ----------------------------
 if st.session_state.history:
     st.markdown("---")
     st.subheader("Prediction History")
