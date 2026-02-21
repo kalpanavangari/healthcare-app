@@ -1,92 +1,83 @@
 import streamlit as st
 import joblib
+import numpy as np
 import pandas as pd
-from datetime import datetime
 
-# Load model and vectorizer
+# -----------------------------
+# Load Model and Vectorizer
+# -----------------------------
 model = joblib.load("svm_model.pkl")
 vectorizer = joblib.load("vectorizer.pkl")
 
-st.set_page_config(page_title="Healthcare Sentiment AI", layout="centered")
+# -----------------------------
+# Page Configuration
+# -----------------------------
+st.set_page_config(
+    page_title="Healthcare Sentiment Analyzer",
+    page_icon="🏥",
+    layout="centered"
+)
 
-# Custom CSS for premium look
-st.markdown("""
-    <style>
-        body {
-            background-color: #0e1117;
-        }
-        .title {
-            font-size:40px;
-            font-weight:bold;
-            text-align:center;
-            color:#4CAF50;
-        }
-        .subtitle {
-            text-align:center;
-            color:gray;
-            margin-bottom:30px;
-        }
-        .result-box {
-            padding:20px;
-            border-radius:10px;
-            font-size:20px;
-            font-weight:bold;
-            text-align:center;
-        }
-    </style>
-""", unsafe_allow_html=True)
+st.title("🏥 Healthcare Review Sentiment Analyzer (SVM)")
+st.markdown("Enter a healthcare review below to predict sentiment.")
 
-st.markdown('<div class="title">🏥 Healthcare Review Sentiment AI</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">SVM-based Intelligent Sentiment Classification System</div>', unsafe_allow_html=True)
-
-# Session history
+# -----------------------------
+# Session History
+# -----------------------------
 if "history" not in st.session_state:
     st.session_state.history = []
 
-# Input
-review = st.text_area("Enter Patient Review", height=150)
+# -----------------------------
+# Input Box
+# -----------------------------
+review = st.text_area("✍️ Patient Review", height=150)
 
+# -----------------------------
+# Predict Button
+# -----------------------------
 if st.button("Analyze Sentiment"):
 
     if review.strip() == "":
         st.warning("Please enter a review.")
     else:
+        # Transform text
         vector = vectorizer.transform([review])
+
+        # Predict sentiment
         prediction = model.predict(vector)[0]
 
-        # Confidence (SVM decision function)
-        confidence = model.decision_function(vector)
-        confidence_score = round(abs(confidence[0]), 3)
+        # Confidence Score (SVM)
+        decision = model.decision_function(vector)
 
-        # If probability available
-        try:
-            probs = model.predict_proba(vector)[0]
-            probability = round(max(probs) * 100, 2)
-        except:
-            probability = None
-
-        # Result styling
-        if prediction == "positive":
-            st.success(f"Predicted Sentiment: POSITIVE 😊")
-        elif prediction == "negative":
-            st.error(f"Predicted Sentiment: NEGATIVE 😡")
+        if len(model.classes_) == 2:
+            confidence = abs(decision[0])
         else:
-            st.info(f"Predicted Sentiment: NEUTRAL 😐")
+            confidence = np.max(decision)
 
-        st.write(f"Confidence Score: {confidence_score}")
+        confidence_percent = round(float(abs(confidence)) * 100, 2)
 
-        if probability:
-            st.write(f"Probability: {probability}%")
+        # Display Result
+        if prediction.lower() == "positive":
+            st.success(f"Predicted Sentiment: {prediction}")
+        elif prediction.lower() == "negative":
+            st.error(f"Predicted Sentiment: {prediction}")
+        else:
+            st.info(f"Predicted Sentiment: {prediction}")
+
+        st.write(f"Confidence Score: {confidence_percent}%")
 
         # Save to history
         st.session_state.history.append({
-            "Time": datetime.now().strftime("%H:%M:%S"),
             "Review": review,
-            "Prediction": prediction
+            "Prediction": prediction,
+            "Confidence (%)": confidence_percent
         })
 
-# Show history
+# -----------------------------
+# Show History
+# -----------------------------
 if st.session_state.history:
-    st.markdown("### 📜 Prediction History")
+    st.markdown("---")
+    st.subheader("📜 Prediction History")
     history_df = pd.DataFrame(st.session_state.history)
-    st.dataframe(history_df, use_container_width=True)
+    st.dataframe(history_df)
