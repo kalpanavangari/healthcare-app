@@ -1,62 +1,56 @@
 import streamlit as st
 import joblib
-import numpy as np
 import pandas as pd
 
-# -----------------------------
-# Load Model and Vectorizer
-# -----------------------------
+# ----------------------------
+# Load model and vectorizer
+# ----------------------------
 model = joblib.load("svm_model.pkl")
 vectorizer = joblib.load("vectorizer.pkl")
 
-# -----------------------------
-# Page Configuration
-# -----------------------------
+# ----------------------------
+# Page settings
+# ----------------------------
 st.set_page_config(
     page_title="Healthcare Sentiment Analyzer",
     page_icon="🏥",
     layout="centered"
 )
 
-st.title("🏥 Healthcare Review Sentiment Analyzer (SVM)")
-st.markdown("Enter a healthcare review below to predict sentiment.")
+st.title("🏥 Healthcare Review Sentiment Analyzer")
+st.write("Enter a healthcare review to predict sentiment.")
 
-# -----------------------------
-# Session History
-# -----------------------------
+# ----------------------------
+# History storage
+# ----------------------------
 if "history" not in st.session_state:
     st.session_state.history = []
 
-# -----------------------------
-# Input Box
-# -----------------------------
-review = st.text_area("✍️ Patient Review", height=150)
+# ----------------------------
+# Input
+# ----------------------------
+review = st.text_area("Patient Review", height=150)
 
-# -----------------------------
-# Predict Button
-# -----------------------------
+# ----------------------------
+# Predict
+# ----------------------------
 if st.button("Analyze Sentiment"):
 
     if review.strip() == "":
         st.warning("Please enter a review.")
     else:
-        # Transform text
+        # Convert text to vector
         vector = vectorizer.transform([review])
 
         # Predict sentiment
         prediction = model.predict(vector)[0]
 
-        # Confidence Score (SVM)
-        decision = model.decision_function(vector)
+        # Get probabilities
+        probabilities = model.predict_proba(vector)[0]
+        class_index = list(model.classes_).index(prediction)
+        confidence = round(probabilities[class_index] * 100, 2)
 
-        if len(model.classes_) == 2:
-            confidence = abs(decision[0])
-        else:
-            confidence = np.max(decision)
-
-        confidence_percent = round(float(abs(confidence)) * 100, 2)
-
-        # Display Result
+        # Display result
         if prediction.lower() == "positive":
             st.success(f"Predicted Sentiment: {prediction}")
         elif prediction.lower() == "negative":
@@ -64,20 +58,20 @@ if st.button("Analyze Sentiment"):
         else:
             st.info(f"Predicted Sentiment: {prediction}")
 
-        st.write(f"Confidence Score: {confidence_percent}%")
+        st.write(f"Confidence: {confidence}%")
 
-        # Save to history
+        # Save history
         st.session_state.history.append({
             "Review": review,
             "Prediction": prediction,
-            "Confidence (%)": confidence_percent
+            "Confidence (%)": confidence
         })
 
-# -----------------------------
-# Show History
-# -----------------------------
+# ----------------------------
+# Show history
+# ----------------------------
 if st.session_state.history:
     st.markdown("---")
-    st.subheader("📜 Prediction History")
+    st.subheader("Prediction History")
     history_df = pd.DataFrame(st.session_state.history)
     st.dataframe(history_df)
